@@ -12,7 +12,9 @@ public class Stroke : MonoBehaviour
 
     public Mesh mesh;
     public Vector3[] vertices;
+    public Vector3[] normals;
     public int[] triangles;
+    public Bounds bounds;
 
     public Vector3[] offsets;
 
@@ -24,13 +26,15 @@ public class Stroke : MonoBehaviour
 
         mesh = GetComponent<MeshFilter>().mesh = new Mesh();
         vertices = mesh.vertices = new Vector3[3 * maxPoints];
+        normals = mesh.normals = new Vector3[3 * maxPoints];
         triangles = mesh.triangles = new int[18 * maxPoints];
+        bounds = mesh.bounds;
         
         offsets = new Vector3[6];
         for (var i = 0; i < 6; i++)
         {
             var angle = 2 * Mathf.PI * i / 6f;
-            offsets[i] = 0.05f * new Vector3(Mathf.Sin(angle), Mathf.Cos(angle), 0);
+            offsets[i] = new Vector3(Mathf.Sin(angle), Mathf.Cos(angle), 0);
         }
 
         points[nextPoint] = Muse.only.hands[control].transform.position;
@@ -52,8 +56,6 @@ public class Stroke : MonoBehaviour
             points[nextPoint] = Muse.only.hands[control].transform.position;
             SetVertices(nextPoint);
             SetTriangles(nextPoint);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
             nextPoint += 1;
         }
     }
@@ -67,10 +69,14 @@ public class Stroke : MonoBehaviour
         {
             var nextVertex = (3 * nextPoint) + i;
             var nextOffset = (nextPoint + (2 * i)) % 6;
-            vertices[nextVertex] = points[nextPoint] + (lookForward * offsets[nextOffset]);
-            Debug.Log(points[nextPoint] + lookForward * offsets[nextOffset]);
+            var offset = lookForward * offsets[nextOffset];
+            vertices[nextVertex] = points[nextPoint] + (0.05f * offset);
+            normals[nextVertex] = offset;
+            bounds.Encapsulate(vertices[nextVertex]);
         }
         mesh.vertices = vertices;
+        mesh.normals = normals;
+        mesh.bounds = bounds;
     }
 
     void SetTriangles(int nextPoint)
