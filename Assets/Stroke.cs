@@ -5,10 +5,10 @@ using System.Collections;
 public class Stroke : MonoBehaviour
 {
     public int control;
-    public bool stroking;
+    public int maxPoints;
+    public int nextPoint;
     public Vector3[] points;
-    public int maxPoints = 10000;
-    public int nextPoint = 0;
+    public bool[] edges;
 
     public Mesh mesh;
     public Vector3[] vertices;
@@ -17,45 +17,48 @@ public class Stroke : MonoBehaviour
     public Bounds bounds;
 
     public Vector3[] offsets;
+    public int[] pyramid;
 
     void Start()
     {
         // control is set externally
-        stroking = true;
+        maxPoints = 10000;
+        nextPoint = 0;
         points = new Vector3[maxPoints];
+        edges = new bool[maxPoints];
 
         mesh = GetComponent<MeshFilter>().mesh = new Mesh();
-        vertices = mesh.vertices = new Vector3[3 * maxPoints];
-        normals = mesh.normals = new Vector3[3 * maxPoints];
-        triangles = mesh.triangles = new int[18 * maxPoints];
+        vertices = mesh.vertices = new Vector3[4 * maxPoints];
+        normals = mesh.normals = new Vector3[4 * maxPoints];
+        triangles = mesh.triangles = new int[12 * maxPoints];
         bounds = mesh.bounds;
         
-        offsets = new Vector3[6];
-        for (var i = 0; i < 6; i++)
-        {
-            var angle = 2 * Mathf.PI * i / 6f;
-            offsets[i] = new Vector3(Mathf.Sin(angle), Mathf.Cos(angle), 0);
-        }
-
-        points[nextPoint] = Muse.only.hands[control].transform.position;
+        offsets = new Vector3[3];
         for (var i = 0; i < 3; i++)
         {
-            vertices[i] = points[nextPoint];
+            var angle = 2 * Mathf.PI * i / 3f;
+            offsets[i] = new Vector3(Mathf.Sin(angle), Mathf.Cos(angle), 0);
         }
-        nextPoint += 1;
+        pyramid = new int[]
+        {
+            0, 1, 3,
+            0, 2, 1,
+            0, 3, 2,
+            1, 2, 3,
+        };
     }
 
     void Update()
     {
-        if (Muse.only.devices[control].GetPressUp(SteamVR_Controller.ButtonMask.Trigger))
-        {
-            stroking = false;
-        }
-        if (stroking)
+        if (Muse.only.devices[control].GetPress(SteamVR_Controller.ButtonMask.Trigger))
         {
             points[nextPoint] = Muse.only.hands[control].transform.position;
-            SetVertices(nextPoint);
-            SetTriangles(nextPoint);
+            if (!Muse.only.devices[control].GetPressDown(SteamVR_Controller.ButtonMask.Trigger))
+            {
+                edges[nextPoint] = true;
+                SetVertices(nextPoint);
+                SetTriangles(nextPoint);
+            }
             nextPoint += 1;
         }
     }
@@ -64,13 +67,14 @@ public class Stroke : MonoBehaviour
     {
         var forward = points[nextPoint] - points[nextPoint - 1];
         var lookForward = Quaternion.FromToRotation(Vector3.forward, forward);
-        Debug.Log("offsets");
+        vertices[4 * nextPoint] = points[nextPoint-1];
+        normals[4 * nextPoint] = -forward;
+        bounds.Encapsulate(vertices[4 * nextPoint]);
         for (var i = 0; i < 3; i++)
         {
-            var nextVertex = (3 * nextPoint) + i;
-            var nextOffset = (nextPoint + (2 * i)) % 6;
-            var offset = lookForward * offsets[nextOffset];
-            vertices[nextVertex] = points[nextPoint] + (0.05f * offset);
+            var nextVertex = (4 * nextPoint) + i + 1;
+            var offset = lookForward * offsets[i];
+            vertices[nextVertex] = points[nextPoint] + (0.001f * offset);
             normals[nextVertex] = offset;
             bounds.Encapsulate(vertices[nextVertex]);
         }
@@ -81,30 +85,12 @@ public class Stroke : MonoBehaviour
 
     void SetTriangles(int nextPoint)
     {
-        var nextVertex = 3 * nextPoint;
-        var nextTriangle = (18 * (nextPoint - 1));
-        triangles[nextTriangle + 0] = nextVertex - 3;
-        triangles[nextTriangle + 1] = nextVertex + 0;
-        triangles[nextTriangle + 2] = nextVertex - 2;
-        triangles[nextTriangle + 3] = nextVertex - 2;
-        triangles[nextTriangle + 4] = nextVertex + 1;
-        triangles[nextTriangle + 5] = nextVertex - 1;
-        triangles[nextTriangle + 6] = nextVertex - 1;
-        triangles[nextTriangle + 7] = nextVertex + 2;
-        triangles[nextTriangle + 8] = nextVertex - 3;
-        triangles[nextTriangle + 9] = nextVertex + 0;
-        triangles[nextTriangle + 10] = nextVertex + 1;
-        triangles[nextTriangle + 11] = nextVertex - 2;
-        triangles[nextTriangle + 12] = nextVertex + 1;
-        triangles[nextTriangle + 13] = nextVertex + 2;
-        triangles[nextTriangle + 14] = nextVertex - 1;
-        triangles[nextTriangle + 15] = nextVertex + 2;
-        triangles[nextTriangle + 16] = nextVertex + 0;
-        triangles[nextTriangle + 17] = nextVertex - 3;
-        // temporarily close the end
-        triangles[nextTriangle + 18] = nextVertex + 0;
-        triangles[nextTriangle + 19] = nextVertex + 2;
-        triangles[nextTriangle + 20] = nextVertex + 1;
+        var nextVertex = 4 * nextPoint;
+        var nextTriangle = 12 * nextPoint;
+        for (var i = 0; i < 12; i++)
+        {
+            triangles[nextTriangle + i] = nextVertex + pyramid[i];
+        }
         mesh.triangles = triangles;
     }
 }

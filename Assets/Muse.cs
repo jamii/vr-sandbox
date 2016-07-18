@@ -3,6 +3,8 @@ using System.Collections;
 
 public class Muse : MonoBehaviour
 {
+    public static Muse only;
+
     public GameObject platonicStroke;
 
     public GameObject[] hands;
@@ -12,11 +14,10 @@ public class Muse : MonoBehaviour
 
     public bool refreshControls;
 
-    public static Muse only;
-
     void Start()
     {
         only = this;
+
         hands = new GameObject[2];
         devices = new SteamVR_Controller.Device[2];
         tracked = new SteamVR_TrackedObject[3];
@@ -63,12 +64,12 @@ public class Muse : MonoBehaviour
         }
 	    for (var i = 0; i < 2; i++)
         {
-            if (hands[i] != null && devices[i].GetPressDown(SteamVR_Controller.ButtonMask.Trigger)) {
-                var stroke = GameObject.Instantiate(platonicStroke);
-                stroke.GetComponent<Stroke>().control = i;
-                stroke.SetActive(true);
-                strokes.Add(stroke);
-            }
+            //if (hands[i] != null && devices[i].GetPressDown(SteamVR_Controller.ButtonMask.Trigger)) {
+            //    var stroke = GameObject.Instantiate(platonicStroke);
+            //    stroke.GetComponent<Stroke>().control = i;
+            //    stroke.SetActive(true);
+            //    strokes.Add(stroke);
+            //}
         }
 	}
 }
